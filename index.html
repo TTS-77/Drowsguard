@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>DrowsGuard</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a0d;--surface:#0e1117;--panel:#131820;--border:#1e2837;--border2:#253040;
+  --accent:#00e5ff;--accent2:#ff3d5a;--warn:#ffab00;--green:#00e676;
+  --text:#c8d8e8;--text-dim:#4a6070;--text-muted:#2a3a50;
+  --mono:'Share Tech Mono',monospace;--display:'Barlow Condensed',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--display);overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.07) 2px,rgba(0,0,0,0.07) 4px);pointer-events:none;z-index:9999}
+
+/* layout */
+.app{display:grid;grid-template-rows:54px 1fr 46px;grid-template-columns:1fr 300px;height:100vh;gap:1px;background:var(--border)}
+
+/* header */
+.header{grid-column:1/-1;background:var(--surface);display:flex;align-items:center;padding:0 22px;gap:18px;position:relative}
+.header::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,var(--accent),transparent);opacity:0.4}
+.logo{display:flex;align-items:center;gap:9px}
+.logo svg{width:26px;height:26px;flex-shrink:0}
+.logo-text{font-size:21px;font-weight:900;letter-spacing:0.12em;color:#fff;text-transform:uppercase}
+.logo-text span{color:var(--accent)}
+.hsep{width:1px;height:26px;background:var(--border2)}
+.htag{font-family:var(--mono);font-size:10px;color:var(--text-dim);letter-spacing:0.1em;text-transform:uppercase}
+.hright{margin-left:auto;display:flex;align-items:center;gap:18px}
+.pill{display:flex;align-items:center;gap:6px;font-family:var(--mono);font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:var(--text-dim);transition:color .3s}
+.pill.active{color:var(--green)}.pill.alert{color:var(--accent2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--text-muted);transition:background .3s,box-shadow .3s}
+.pill.active .dot{background:var(--green);box-shadow:0 0 8px var(--green);animation:pdot 2s infinite}
+.pill.alert  .dot{background:var(--accent2);box-shadow:0 0 10px var(--accent2);animation:palert .5s infinite}
+@keyframes pdot{0%,100%{opacity:1}50%{opacity:.4}}
+@keyframes palert{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(1.4)}}
+.clock{font-family:var(--mono);font-size:13px;color:var(--text-dim)}
+
+/* main */
+.main{background:#000;position:relative;overflow:hidden}
+.main::before,.main::after,.bl,.br{content:'';position:absolute;width:26px;height:26px;border-color:var(--accent);border-style:solid;opacity:.45;z-index:5;pointer-events:none}
+.main::before{top:14px;left:14px;border-width:2px 0 0 2px}
+.main::after{top:14px;right:14px;border-width:2px 2px 0 0}
+.bl{bottom:14px;left:14px;border-width:0 0 2px 2px}
+.br{bottom:14px;right:14px;border-width:0 2px 2px 0}
+
+#feed{width:100%;height:100%;object-fit:cover;display:block;transform:scaleX(-1)}
+
+.placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;background:var(--surface)}
+.placeholder svg{opacity:.12}
+.placeholder p{font-family:var(--mono);font-size:11px;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase}
+
+/* alert overlay */
+.alert-ov{position:absolute;inset:0;pointer-events:none;z-index:10;opacity:0}
+.alert-ov.on{opacity:1;animation:afl .5s infinite}
+@keyframes afl{0%,100%{box-shadow:inset 0 0 0 4px var(--accent2),inset 0 0 50px rgba(255,61,90,.2)}50%{box-shadow:inset 0 0 0 4px rgba(255,61,90,.3)}}
+.banner{position:absolute;bottom:72px;left:50%;transform:translateX(-50%);background:var(--accent2);color:#fff;font-size:26px;font-weight:900;letter-spacing:.22em;padding:9px 28px;clip-path:polygon(7px 0%,100% 0%,calc(100% - 7px) 100%,0% 100%);white-space:nowrap;display:none;animation:bthrob .5s infinite}
+.banner.on{display:block}
+@keyframes bthrob{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.02)}}
+
+/* countdown */
+.ring{position:absolute;top:18px;right:18px;width:68px;height:68px;z-index:6;opacity:0;transition:opacity .3s}
+.ring.on{opacity:1}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.rbg{fill:none;stroke:rgba(255,255,255,.07);stroke-width:5}
+.rfill{fill:none;stroke:var(--warn);stroke-width:5;stroke-linecap:round;stroke-dasharray:188.5;stroke-dashoffset:188.5;transition:stroke-dashoffset .12s linear}
+.rlabel{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:14px;font-weight:bold;color:var(--warn)}
+
+/* sidebar */
+.sidebar{background:var(--surface);display:flex;flex-direction:column;overflow-y:auto;overflow-x:hidden}
+.sidebar::-webkit-scrollbar{width:3px}
+.sidebar::-webkit-scrollbar-thumb{background:var(--border2)}
+.sec{padding:16px 18px;border-bottom:1px solid var(--border)}
+.slbl{font-family:var(--mono);font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted);margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.slbl::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* state */
+.sblock{text-align:center;padding:14px 0 6px}
+.stext{font-size:30px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:var(--green);transition:color .2s;line-height:1}
+.stext.warn{color:var(--warn)}.stext.alert{color:var(--accent2);text-shadow:0 0 24px rgba(255,61,90,.5)}
+.ssub{font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:.08em;margin-top:4px}
+
+/* gauges */
+.gauges{display:flex;flex-direction:column;gap:12px}
+.gauge{display:flex;flex-direction:column;gap:5px}
+.gh{display:flex;justify-content:space-between;align-items:baseline}
+.gname{font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim)}
+.gval{font-family:var(--mono);font-size:17px;font-weight:bold;color:var(--green);transition:color .2s;line-height:1}
+.gval.warn{color:var(--warn)}.gval.alert{color:var(--accent2)}
+.gtrack{position:relative;height:6px;background:var(--panel);border-radius:3px;overflow:visible}
+.gfill{height:100%;border-radius:3px;background:var(--green);transition:width .12s ease-out,background .2s}
+.gfill.warn{background:var(--warn)}.gfill.alert{background:var(--accent2)}
+.gthr{position:absolute;top:-3px;height:12px;width:2px;background:rgba(255,255,255,.3);border-radius:1px}
+.vdots{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
+.vd{width:8px;height:8px;border-radius:50%;background:var(--border2);transition:background .15s}
+.vd.c{background:var(--accent2);box-shadow:0 0 4px var(--accent2)}
+.vd.o{background:var(--green)}
+
+/* stats */
+.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.sbox{background:var(--panel);border:1px solid var(--border);border-radius:4px;padding:11px 13px}
+.sval{font-family:var(--mono);font-size:20px;font-weight:bold;color:var(--accent);line-height:1}
+.slb{font-size:9px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--text-muted);margin-top:4px}
+
+/* controls */
+.ctls{display:flex;flex-direction:column;gap:9px}
+.btn{width:100%;padding:10px 0;font-family:var(--display);font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;border:none;border-radius:3px;cursor:pointer;transition:all .15s}
+.btn:active{transform:scale(.98)}
+.btn-p{background:var(--accent);color:#050a0d;box-shadow:0 0 18px rgba(0,229,255,.18)}
+.btn-d{background:transparent;color:var(--accent2);border:1px solid var(--accent2)}
+.btn-g{background:var(--panel);color:var(--text-dim);border:1px solid var(--border2)}
+
+/* log */
+.log{flex:1;display:flex;flex-direction:column;gap:5px;max-height:130px;overflow-y:auto}
+.log::-webkit-scrollbar{width:3px}
+.lentry{display:flex;align-items:center;gap:8px;padding:6px 9px;background:var(--panel);border-left:2px solid var(--accent2);border-radius:0 3px 3px 0;animation:lin .25s ease-out}
+@keyframes lin{from{opacity:0;transform:translateX(-6px)}to{opacity:1;transform:none}}
+.ltime{font-family:var(--mono);font-size:10px;color:var(--text-muted);flex-shrink:0}
+.lmsg{font-size:11px;font-weight:600;letter-spacing:.04em;color:var(--text-dim)}
+.lempty{font-family:var(--mono);font-size:10px;color:var(--text-muted);text-align:center;padding:14px 0}
+
+/* footer */
+.footer{grid-column:1/-1;background:var(--surface);border-top:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:20px;font-family:var(--mono);font-size:10px;color:var(--text-muted);letter-spacing:.07em}
+.fi{display:flex;align-items:center;gap:6px}
+.fi span:last-child{color:var(--text-dim)}
+.fsep{width:1px;height:14px;background:var(--border)}
+.fr{margin-left:auto}
+
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- header -->
+  <header class="header">
+    <div class="logo">
+      <svg viewBox="0 0 28 28" fill="none">
+        <ellipse cx="14" cy="14" rx="13" ry="8" stroke="#00e5ff" stroke-width="1.5"/>
+        <circle cx="14" cy="14" r="4" fill="#00e5ff" opacity=".9"/>
+        <circle cx="14" cy="14" r="2" fill="#050a0d"/>
+        <line x1="1" y1="14" x2="5" y2="14" stroke="#00e5ff" stroke-width="1.5"/>
+        <line x1="23" y1="14" x2="27" y2="14" stroke="#00e5ff" stroke-width="1.5"/>
+      </svg>
+      <div class="logo-text">Drows<span>Guard</span></div>
+    </div>
+    <div class="hsep"></div>
+    <div class="htag">Driver Monitoring System</div>
+    <div class="hright">
+      <div class="pill" id="pill"><div class="dot"></div><span id="pillLabel">OFFLINE</span></div>
+      <div class="hsep"></div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- camera -->
+  <main class="main">
+    <div class="bl"></div><div class="br"></div>
+    <div class="placeholder" id="ph">
+      <svg width="60" height="60" viewBox="0 0 64 64" fill="none">
+        <rect x="8" y="18" width="48" height="32" rx="4" stroke="#4a6070" stroke-width="2"/>
+        <circle cx="32" cy="34" r="10" stroke="#4a6070" stroke-width="2"/>
+        <circle cx="32" cy="34" r="4" fill="#4a6070"/>
+        <rect x="22" y="12" width="12" height="8" rx="2" stroke="#4a6070" stroke-width="2"/>
+      </svg>
+      <p>Camera inactive</p>
+      <p style="opacity:.5;font-size:10px">Press START to begin</p>
+    </div>
+    <img id="feed" class="hidden" src="" alt="feed"/>
+    <div class="alert-ov" id="aov"></div>
+    <div class="banner" id="banner">⚠ WAKE UP ⚠</div>
+    <div class="ring" id="ring">
+      <svg viewBox="0 0 64 64"><circle class="rbg" cx="32" cy="32" r="30"/><circle class="rfill" cx="32" cy="32" r="30" id="rfill"/></svg>
+      <div class="rlabel" id="rlabel">2.0</div>
+    </div>
+  </main>
+
+  <!-- sidebar -->
+  <aside class="sidebar">
+    <div class="sec">
+      <div class="slbl">Status</div>
+      <div class="sblock">
+        <div class="stext" id="stext">STANDBY</div>
+        <div class="ssub" id="ssub">Not running</div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="slbl">Blink Score</div>
+      <div class="gauges">
+        <div class="gauge">
+          <div class="gh"><span class="gname">Left Eye</span><span class="gval" id="lval">0.00</span></div>
+          <div class="gtrack"><div class="gfill" id="lfill" style="width:0%"></div><div class="gthr" id="lthr"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gh"><span class="gname">Right Eye</span><span class="gval" id="rval">0.00</span></div>
+          <div class="gtrack"><div class="gfill" id="rfill2" style="width:0%"></div><div class="gthr" id="rthr"></div></div>
+        </div>
+        <div><div class="slbl" style="margin-bottom:6px">Vote Window</div><div class="vdots" id="vdots"></div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="slbl">Session Stats</div>
+      <div class="sgrid">
+        <div class="sbox"><div class="sval" id="sAlerts">0</div><div class="slb">Alerts</div></div>
+        <div class="sbox"><div class="sval" id="sFps">--</div><div class="slb">FPS</div></div>
+        <div class="sbox"><div class="sval" id="sUptime">0:00</div><div class="slb">Uptime</div></div>
+        <div class="sbox"><div class="sval" id="sFace">--</div><div class="slb">Face</div></div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="slbl">Controls</div>
+      <div class="ctls">
+        <button class="btn btn-p" id="btnStart" onclick="startDetection()">▶ Start Monitoring</button>
+        <button class="btn btn-d hidden" id="btnStop" onclick="stopDetection()">■ Stop</button>
+        <button class="btn btn-g" onclick="clearLog()">Clear Alert Log</button>
+      </div>
+    </div>
+
+    <div class="sec" style="flex:1">
+      <div class="slbl">Alert Log</div>
+      <div class="log" id="log"><div class="lempty" id="lempty">No alerts this session</div></div>
+    </div>
+  </aside>
+
+  <!-- footer -->
+  <footer class="footer">
+    <div class="fi"><span>BACKEND</span><span>Python + Flask</span></div>
+    <div class="fsep"></div>
+    <div class="fi"><span>MODEL</span><span>MediaPipe Blendshapes</span></div>
+    <div class="fsep"></div>
+    <div class="fi"><span>STREAM</span><span>MJPEG</span></div>
+    <div class="fr"><div class="fi"><span>STATUS</span><span id="fstatus">Waiting for backend...</span></div></div>
+  </footer>
+</div>
+
+<script>
+const THRESHOLD     = 0.35;
+const ALARM_DELAY   = 2.0;
+const VOTE_N        = 6;
+const POLL_MS       = 100;   // poll /state every 100ms
+
+let polling      = false;
+let pollTimer    = null;
+let startTime    = null;
+let alertCount   = 0;
+let lastLogTime  = 0;
+let uptimeTimer  = null;
+
+// DOM shortcuts
+const $  = id => document.getElementById(id);
+const cl = (el, on, cls) => el.classList[on ? 'add' : 'remove'](cls);
+
+// ── clock ─────────────────────────────────────────────────────────────────
+setInterval(() => { $('clock').textContent = new Date().toTimeString().slice(0,8); }, 1000);
+
+// ── threshold markers ─────────────────────────────────────────────────────
+['lthr','rthr'].forEach(id => { $(id).style.left = (THRESHOLD * 100) + '%'; });
+
+// ── start / stop ──────────────────────────────────────────────────────────
+async function startDetection() {
+  try {
+    await fetch('/start', { method: 'POST' });
+    $('ph').classList.add('hidden');
+    $('feed').src = '/video_feed';
+    $('feed').classList.remove('hidden');
+    cl($('pill'), true, 'active');
+    $('pillLabel').textContent = 'MONITORING';
+    $('btnStart').classList.add('hidden');
+    $('btnStop').classList.remove('hidden');
+    $('fstatus').textContent = 'Backend active';
+    startTime = Date.now();
+    uptimeTimer = setInterval(updateUptime, 1000);
+    startPolling();
+  } catch(e) {
+    $('stext').textContent = 'ERROR';
+    $('ssub').textContent  = 'Cannot reach backend';
+  }
+}
+
+function stopDetection() {
+  fetch('/stop', { method: 'POST' });
+  stopPolling();
+  clearInterval(uptimeTimer);
+  $('feed').src = '';
+  $('feed').classList.add('hidden');
+  $('ph').classList.remove('hidden');
+  cl($('pill'), false, 'active'); cl($('pill'), false, 'alert');
+  $('pillLabel').textContent = 'OFFLINE';
+  $('btnStart').classList.remove('hidden');
+  $('btnStop').classList.add('hidden');
+  $('stext').className = 'stext';
+  $('stext').textContent = 'STANDBY';
+  $('ssub').textContent  = 'Not running';
+  cl($('aov'), false, 'on');
+  cl($('banner'), false, 'on');
+  cl($('ring'), false, 'on');
+  $('sFps').textContent = '--'; $('sFace').textContent = '--';
+  $('fstatus').textContent = 'Stopped';
+}
+
+// ── state polling ─────────────────────────────────────────────────────────
+function startPolling() {
+  polling = true;
+  (async function loop() {
+    if (!polling) return;
+    try {
+      const r  = await fetch('/state');
+      const st = await r.json();
+      applyState(st);
+    } catch(e) {}
+    pollTimer = setTimeout(loop, POLL_MS);
+  })();
+}
+
+function stopPolling() {
+  polling = false;
+  clearTimeout(pollTimer);
+}
+
+// ── apply state from backend ──────────────────────────────────────────────
+function applyState(s) {
+  // Gauges
+  setGauge('lfill', 'lval', s.sm_l);
+  setGauge('rfill2', 'rval', s.sm_r);
+
+  // Vote dots
+  const dots = $('vdots');
+  dots.innerHTML = '';
+  for (let i = 0; i < VOTE_N; i++) {
+    const d = document.createElement('div');
+    const idx = s.vote_total - VOTE_N + i;
+    d.className = 'vd' + (i < s.vote_total ? (s.status === 'closed' || s.status === 'alert' ? ' c' : ' o') : '');
+    dots.appendChild(d);
+  }
+
+  // Status text + colours
+  const st = $('stext'), sb = $('ssub');
+  st.className = 'stext';
+  cl($('aov'),    false, 'on');
+  cl($('banner'), false, 'on');
+  cl($('ring'),   false, 'on');
+  cl($('pill'), false, 'alert');
+
+  if (s.status === 'open') {
+    st.textContent = 'EYES OPEN'; sb.textContent = 'All clear';
+  } else if (s.status === 'no_face') {
+    st.textContent = 'NO FACE'; sb.textContent = 'Position face in frame';
+  } else if (s.status === 'closed') {
+    st.className = 'stext warn';
+    const rem = Math.max(0, ALARM_DELAY - s.closed_for);
+    st.textContent = 'EYES CLOSED';
+    sb.textContent = `Alert in ${rem.toFixed(1)}s`;
+    // ring
+    const frac = s.closed_for / ALARM_DELAY;
+    $('rfill').style.strokeDashoffset = 188.5 - (188.5 * frac);
+    $('rlabel').textContent = rem.toFixed(1);
+    cl($('ring'), true, 'on');
+  } else if (s.status === 'alert') {
+    st.className = 'stext alert';
+    st.textContent = 'WAKE UP!';
+    sb.textContent = `Closed for ${s.closed_for.toFixed(1)}s`;
+    cl($('aov'),    true, 'on');
+    cl($('banner'), true, 'on');
+    cl($('pill'), true, 'alert');
+    logAlert();
+  }
+
+  $('sFps').textContent  = s.fps || '--';
+  $('sFace').textContent = s.face_found ? 'YES' : 'NO';
+}
+
+function setGauge(fillId, valId, score) {
+  const fill = $(fillId), val = $(valId);
+  fill.style.width = Math.min(score * 100, 100) + '%';
+  val.textContent  = score.toFixed(2);
+  const c = score >= THRESHOLD ? 'alert' : score > THRESHOLD * 0.7 ? 'warn' : '';
+  fill.className = 'gfill ' + c;
+  val.className  = 'gval '  + c;
+}
+
+// ── alert log ─────────────────────────────────────────────────────────────
+function logAlert() {
+  const now = Date.now();
+  if (now - lastLogTime < 3000) return;
+  lastLogTime = now;
+  alertCount++;
+  $('sAlerts').textContent = alertCount;
+  $('lempty') && $('lempty').classList.add('hidden');
+  const e = document.createElement('div');
+  e.className = 'lentry';
+  e.innerHTML = `<span class="ltime">${new Date().toTimeString().slice(0,8)}</span><span class="lmsg">Drowsiness detected</span>`;
+  $('log').insertBefore(e, $('log').firstChild);
+  if ($('log').children.length > 20) $('log').removeChild($('log').lastChild);
+}
+
+function clearLog() {
+  $('log').innerHTML = '<div class="lempty" id="lempty">No alerts this session</div>';
+  alertCount = 0; $('sAlerts').textContent = '0';
+}
+
+// ── uptime ────────────────────────────────────────────────────────────────
+function updateUptime() {
+  if (!startTime) return;
+  const e = Math.floor((Date.now() - startTime) / 1000);
+  $('sUptime').textContent = Math.floor(e/60) + ':' + String(e%60).padStart(2,'0');
+}
+
+// ── startup ping ──────────────────────────────────────────────────────────
+(async () => {
+  try {
+    await fetch('/state');
+    $('fstatus').textContent = 'Backend ready — click Start';
+  } catch {
+    $('fstatus').textContent = 'Cannot reach backend — is app.py running?';
+  }
+})();
+</script>
+</body>
+</html>

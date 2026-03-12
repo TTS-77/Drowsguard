@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+env/
+.venv/
+
+# MediaPipe model (auto-downloaded, no need to commit ~1MB binary)
+face_landmarker.task
+
+# Audio (user provides their own)
+alarm.mp3
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
