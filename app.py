@@ -316,6 +316,6 @@ def video_feed():
                     mimetype="multipart/x-mixed-replace; boundary=frame")
 
 if __name__ == "__main__":
-    print("DrowsGuard backend starting...")
-    print("Open http://localhost:5000 in your browser")
-    app.run(host="0.0.0.0", port=5000, debug=False, threaded=True)
+    port = int(os.environ.get("PORT", 5000))
+    print(f"Starting on port {port}")
+    app.run(host="0.0.0.0", port=port, debug=False, threaded=True)
